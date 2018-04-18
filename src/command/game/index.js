@@ -1,5 +1,7 @@
 /* eslint-disable no-await-in-loop, no-constant-condition */
 
+import R from 'ramda';
+import moment from 'moment-timezone';
 import parse from 'date-fns/parse';
 import addDays from 'date-fns/add_days';
 import subDays from 'date-fns/sub_days';
@@ -16,25 +18,23 @@ import preview from './preview';
 import scoreboard from './scoreboard';
 import boxScore from './boxScore';
 import live from './live';
+import getBroadcastNetworks from './network';
 
 import NBA from '../../utils/nba';
 import { error, bold } from '../../utils/log';
 import { cfontsDate } from '../../utils/cfonts';
 import getBlessed from '../../utils/blessed';
+import catchAPIError from '../../utils/catchAPIError';
 
-const catchError = (err, apiName) => {
-  error(err);
-  console.log('');
-  error(`Oops, ${apiName} goes wrong.`);
-  error(
-    'Please run nba-go again.\nIf it still does not work, feel free to open an issue on https://github.com/xxhomey19/nba-go/issues'
-  );
-  process.exit(1);
-};
+const getLosAngelesTimezone = date =>
+  moment
+    .tz(date, 'America/Los_Angeles')
+    .startOf('day')
+    .format();
 
 const getSeason = date => {
-  const year = getYear(new Date(date));
-  const month = getMonth(new Date(date));
+  const year = R.compose(getYear, parse)(date);
+  const month = R.compose(getMonth, parse)(date);
 
   if (year < 2012 || (year === 2012 && month < 5)) {
     error(
@@ -50,12 +50,14 @@ const getSeason = date => {
   } else {
     process.env.season = `${year - 1}-${year.toString().slice(-2)}`;
   }
+
+  return date;
 };
 
-const getGameWithOptionalFilter = async (games, filter) => {
-  if (filter && filter.split('=')[0] === 'team') {
+const getGameWithOptionalFilter = async (games, option) => {
+  if (option.filter && option.filter.split('=')[0] === 'team') {
     // TODO: Add more robust filtering but use team as proof of concept
-    const components = filter.split('=');
+    const components = option.filter.split('=');
     const team = components[1].toLowerCase();
     const potentialGames = games.filter(
       data =>
@@ -76,7 +78,7 @@ const getGameWithOptionalFilter = async (games, filter) => {
     } else return chooseGameFromSchedule(potentialGames);
   }
 
-  return chooseGameFromSchedule(games);
+  return chooseGameFromSchedule(games, option);
 };
 
 const game = async option => {
@@ -86,8 +88,8 @@ const game = async option => {
   let seasonMetaData;
 
   if (option.date) {
-    if (isValid(new Date(option.date))) {
-      _date = format(parse(option.date), 'YYYY/MM/DD');
+    if (R.compose(isValid, parse)(option.date)) {
+      _date = format(option.date, 'YYYY-MM-DD');
     } else {
       error('Date is invalid');
       process.exit(1);
@@ -102,36 +104,33 @@ const game = async option => {
     error(`Can't find any option ${emoji.get('confused')}`);
     process.exit(1);
   }
+  R.compose(cfontsDate, getSeason)(_date);
 
-  getSeason(_date);
-
-  cfontsDate(_date);
+  const LADate = getLosAngelesTimezone(_date);
 
   try {
     const {
       sports_content: { games: { game: _gamesData } },
-    } = await NBA.getGamesFromDate(new Date(_date));
+    } = await NBA.getGamesFromDate(LADate);
     gamesData = _gamesData;
   } catch (err) {
-    catchError(err, 'NBA.getGamesFromDate()');
+    catchAPIError(err, 'NBA.getGamesFromDate()');
   }
-
   const {
     game: { homeTeam, visitorTeam, gameData },
-  } = await getGameWithOptionalFilter(gamesData, option.filter);
-
+  } = await getGameWithOptionalFilter(gamesData, option);
   try {
     const {
       sports_content: {
         game: _gameBoxScoreData,
         sports_meta: { season_meta: _seasonMetaData },
       },
-    } = await NBA.getBoxScoreFromDate(new Date(_date), gameData.id);
+    } = await NBA.getBoxScoreFromDate(LADate, gameData.id);
 
     gameBoxScoreData = _gameBoxScoreData;
     seasonMetaData = _seasonMetaData;
   } catch (err) {
-    catchError(err, 'NBA.getBoxScoreFromDate()');
+    catchAPIError(err, 'NBA.getBoxScoreFromDate()');
   }
 
   const { home, visitor } = gameBoxScoreData;
@@ -150,6 +149,7 @@ const game = async option => {
     timeText,
     dateText,
     arenaText,
+    networkText,
     homeTeamScoreText,
     visitorTeamScoreText,
     playByPlayBox,
@@ -183,7 +183,7 @@ const game = async option => {
         homeTeamDashboardData = _homeTeamDashboardData;
         visitorTeamDashboardData = _visitorTeamDashboardData;
       } catch (err) {
-        catchError(err, 'NBA.teamSplits()');
+        catchAPIError(err, 'NBA.teamSplits()');
       }
 
       spinner.stop();
@@ -205,7 +205,10 @@ const game = async option => {
       seasonText.setContent(
         bold(`${seasonMetaData.display_year} ${seasonMetaData.display_season}`)
       );
-      const { arena, city, state, date, time } = gameBoxScoreData;
+      const { arena, city, state, date, time, broadcasters } = gameBoxScoreData;
+
+      const networks = getBroadcastNetworks(broadcasters.tv.broadcaster);
+
       dateText.setContent(
         `${emoji.get('calendar')}  ${format(date, 'YYYY/MM/DD')} ${time.slice(
           0,
@@ -215,28 +218,30 @@ const game = async option => {
       arenaText.setContent(
         `${emoji.get('house')}  ${arena} | ${city}, ${state}`
       );
-
+      networkText.setContent(
+        `${networks.homeTeam} ${emoji.get('tv')}  ${networks.visitorTeam}`
+      );
       while (true) {
         let gamePlayByPlayData = {};
 
         try {
           const {
             sports_content: { game: _updatedPlayByPlayData },
-          } = await NBA.getPlayByPlayFromDate(new Date(_date), gameData.id);
+          } = await NBA.getPlayByPlayFromDate(LADate, gameData.id);
 
           updatedPlayByPlayData = _updatedPlayByPlayData;
         } catch (err) {
-          catchError(err, 'NBA.getPlayByPlayFromDate()');
+          catchAPIError(err, 'NBA.getPlayByPlayFromDate()');
         }
 
         try {
           const {
             sports_content: { game: _updatedGameBoxScoreData },
-          } = await NBA.getBoxScoreFromDate(new Date(_date), gameData.id);
+          } = await NBA.getBoxScoreFromDate(LADate, gameData.id);
 
           updatedGameBoxScoreData = _updatedGameBoxScoreData;
         } catch (err) {
-          catchError(err, 'NBA.getBoxScoreFromDate()');
+          catchAPIError(err, 'NBA.getBoxScoreFromDate()');
         }
 
         gamePlayByPlayData = updatedPlayByPlayData;

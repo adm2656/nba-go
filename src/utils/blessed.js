@@ -70,8 +70,8 @@ const getBlessed = (homeTeam, visitorTeam) => {
   });
 
   const homeTeamScoreText = blessed.bigtext({
-    font: path.resolve(__filename, '../../data/fonts/ter-u12n.json'),
-    fontBold: path.resolve(__filename, '../../data/fonts/ter-u12b.json'),
+    font: path.join(__dirname, './fonts/ter-u12n.json'),
+    fontBold: path.join(__dirname, './fonts/ter-u12b.json'),
     top: 2,
     left: '33%-20',
     width: 15,
@@ -108,8 +108,8 @@ const getBlessed = (homeTeam, visitorTeam) => {
   });
 
   const visitorTeamScoreText = blessed.bigtext({
-    font: path.resolve(__filename, '../../data/fonts/ter-u12n.json'),
-    fontBold: path.resolve(__filename, '../../data/fonts/ter-u12n.json'),
+    font: path.join(__dirname, './fonts/ter-u12n.json'),
+    fontBold: path.join(__dirname, './fonts/ter-u12b.json'),
     top: 2,
     left: '66%+6',
     width: 15,
@@ -148,6 +148,15 @@ const getBlessed = (homeTeam, visitorTeam) => {
 
   const arenaText = blessed.text({
     top: 3,
+    left: 'center',
+    align: 'center',
+    style: {
+      fg: 'white',
+    },
+  });
+
+  const networkText = blessed.text({
+    top: 4,
     left: 'center',
     align: 'center',
     style: {
@@ -206,6 +215,7 @@ const getBlessed = (homeTeam, visitorTeam) => {
   screen.append(timeText);
   screen.append(dateText);
   screen.append(arenaText);
+  screen.append(networkText);
   screen.append(homeTeamFullNameText);
   screen.append(homeTeamStandingsText);
   screen.append(homeTeamScoreText);
@@ -224,6 +234,7 @@ const getBlessed = (homeTeam, visitorTeam) => {
     timeText,
     dateText,
     arenaText,
+    networkText,
     homeTeamScoreText,
     visitorTeamScoreText,
     playByPlayBox,

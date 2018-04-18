@@ -21,7 +21,12 @@ if (!isAsyncSupported()) {
   }).notify({ defer: false });
 })();
 
-program.version(pkg.version);
+program.version(
+  `\n${chalk`{bold.hex('#0069b9') NBA}`} ${nbaRed('GO')} version: ${
+    pkg.version
+  }\n`,
+  '-v, --version'
+);
 
 program
   .command('player <name>')
@@ -29,6 +34,10 @@ program
   .option('-i, --info', "Check the player's basic information")
   .option('-r, --regular', "Check the player's career regular season data")
   .option('-p, --playoffs', "Check the player's career playoffs data")
+  .option(
+    '-c, --compare',
+    "Compare the stats of two or more players. Seperate the names with commas, ex:'Stepen Curry, Lebron James'"
+  )
   .on('--help', () => {
     console.log('');
     console.log(
@@ -67,6 +76,7 @@ program
   .option('-t, --today', "Watch today's games")
   .option('-T, --tomorrow', "Watch tomorrow's games")
   .option('-f, --filter <filter>', 'Filter game choices to watch')
+  .option('-n, --networks', 'See the networks game is/was televised on.')
   .on('--help', () => {
     console.log('');
     console.log('  Watch NBA live play-by-play, game preview and box score.');
@@ -134,8 +144,6 @@ program.on('--help', () => {
   );
   console.log('');
 });
-
-program.option('-v --version', pkg.version);
 
 program.command('*').action(command => {
   error(`Unknown command: ${bold(command)}`);

@@ -111,6 +111,13 @@ $ nba-go game -T
 
 ![game -T gif](https://user-images.githubusercontent.com/12113222/32414142-7897dfe0-c25b-11e7-9acf-d50ade5379fd.gif)
 
+##### `-n` or `--networks`
+Display on schedule home team and away team television network information.
+
+```
+$ nba-go game -n
+```
+
 #### Pregame  
 ⭐️⭐️  
 Check the detailed comparison data between two teams in the game.  
@@ -174,6 +181,15 @@ Get player's basic information.
 $ nba-go player Curry -p
 ```
 ![player -p gif](https://user-images.githubusercontent.com/12113222/32500032-234e8fba-c40f-11e7-87c0-6e42a66a52dc.gif)
+
+##### `-c` or `--compare`  
+Get and compare the stats from multiple players. The better stat will be highlighted in green to make comparing easier.
+When listing the multiple names they must be in quotes and seperated by commas. Can be combined with the -i, -r, and -p flags.
+
+```
+$ nba-go player "Lebron James, Stephen Curry, James Harden" -c -i -r -p
+```
+![player -c gif](https://user-images.githubusercontent.com/12113222/37696809-1fd54306-2d14-11e8-9261-4d9b6a08588a.gif)
 
 #### Mixed them all
 Get all data at the same time.
